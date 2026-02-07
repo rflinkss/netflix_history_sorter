@@ -1,4 +1,4 @@
-# netflix_history_sorter
+# netflix history sorter
 The code first distinguishes between a single entry (one specific time you sat down to watch) and the show as a whole.      Episodes: Individual entries that record every single time you hit play.      Series: The "parent" category that groups all those episodes together.
 
 Note: Most of this code was written with Gemini, I refined some of it but I just wanted to push my idea out using this form. 
