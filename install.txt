@@ -1,0 +1,7 @@
+How to run: 
+
+1: First you need python installed as this is a py script
+
+2: Put your downloaded Netflix Viewing History csv file in the same filder as this project
+
+3: Run the py scrtipt
