@@ -35,7 +35,7 @@ First, you need to request your viewing history from Netflix.
 A new file named **`Netflix_History_Organized.html`** will appear in the folder. Open it in any web browser to explore your history!
 
 ## ⚠️ Note
-Most of this code was written with Gemini. I refined some of it, but I just wanted to push my idea out using this form.
+Most of this code was written with Gemini. I refined some of it, but I just wanted to push my idea out without using brain power.
 
 ## 📞 Contact
 Join my server and message me for any contact reasons:
