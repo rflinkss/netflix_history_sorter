@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Netflix History Viewer</title>
+  <style>
+    :root {
+      --bg: #141414;
+      --surface: #1f1f1f;
+      --surface2: #2a2a2a;
+      --border: #333;
+      --red: #e50914;
+      --red-dim: #a6060f;
+      --text: #e5e5e5;
+      --text-dim: #888;
+      --gold: #f5c518;
+      --green: #2ecc71;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    a { color: var(--red); }
+    a:hover { text-decoration: underline; }
+    code {
+      background: var(--surface2);
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 0.88em;
+    }
+
+    /* ── Screens ── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ══════════════════════════════════════
+       IMPORT SCREEN
+    ══════════════════════════════════════ */
+    #import-screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 20px 80px;
+    }
+
+    .import-header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .n-logo {
+      display: inline-block;
+      font-size: 3.2rem;
+      font-weight: 900;
+      color: var(--red);
+      letter-spacing: -3px;
+      margin-bottom: 14px;
+    }
+
+    .import-header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .import-header p {
+      color: var(--text-dim);
+      font-size: 1rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px 32px;
+      margin-bottom: 14px;
+      width: 100%;
+      max-width: 620px;
+    }
+
+    .card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+    }
+
+    /* Drop Zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 44px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .drop-zone.dragover,
+    .drop-zone:hover {
+      border-color: var(--red);
+      background: rgba(229, 9, 20, 0.05);
+    }
+
+    .drop-icon { font-size: 2.8rem; display: block; margin-bottom: 12px; }
+
+    .drop-zone h3 {
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+
+    .drop-zone p {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      margin-bottom: 18px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 20px;
+      border-radius: var(--radius);
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .btn-primary { background: var(--red); color: #fff; }
+    .btn-primary:hover { background: var(--red-dim); }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #333; }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-weight: 500;
+    }
+    .btn-outline:hover { border-color: #666; }
+    .btn-outline:disabled { opacity: 0.5; cursor: default; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-dim);
+      border: none;
+      font-weight: 400;
+      padding: 7px 12px;
+    }
+    .btn-ghost:hover { color: var(--text); }
+
+    /* API key row */
+    .key-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .text-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 13px;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: monospace;
+      transition: border-color 0.15s;
+    }
+    .text-input:focus { outline: none; border-color: var(--red); }
+    .text-input::placeholder { color: var(--text-dim); font-family: inherit; }
+
+    .key-saved {
+      display: inline-block;
+      margin-top: 8px;
+      background: rgba(46, 204, 113, 0.12);
+      color: var(--green);
+      border: 1px solid rgba(46, 204, 113, 0.25);
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 0.8rem;
+    }
+
+    /* How-to list */
+    .how-to ol {
+      padding-left: 20px;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+    }
+    .how-to li { padding: 4px 0; }
+    .how-to strong { color: var(--text); }
+
+    /* Error */
+    .error-banner {
+      background: rgba(229, 9, 20, 0.1);
+      border: 1px solid rgba(229, 9, 20, 0.3);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      color: #ff6b6b;
+      font-size: 0.88rem;
+      margin-top: 12px;
+      display: none;
+    }
+
+    /* ══════════════════════════════════════
+       RESULTS SCREEN
+    ══════════════════════════════════════ */
+
+    /* Sticky nav */
+    #results-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(10, 10, 10, 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 10px 24px;
+    }
+
+    .nav-logo {
+      font-size: 1.7rem;
+      font-weight: 900;
+      color: var(--red);
+      letter-spacing: -2px;
+      flex-shrink: 0;
+    }
+
+    .nav-stats {
+      display: flex;
+      gap: 24px;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+
+    .nav-stat {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    .nav-stat strong {
+      color: var(--text);
+      font-size: 0.95rem;
+      margin-right: 3px;
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    /* Content wrapper */
+    .results-content {
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 24px 24px 60px;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    #search-input {
+      flex: 1;
+      min-width: 180px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      color: var(--text);
+      font-size: 0.93rem;
+      transition: border-color 0.15s;
+    }
+    #search-input:focus { outline: none; border-color: var(--red); }
+    #search-input::placeholder { color: var(--text-dim); }
+
+    .tabs { display: flex; gap: 4px; }
+
+    .tab-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn.active { background: var(--red); border-color: var(--red); color: #fff; }
+    .tab-btn:not(.active):hover { background: var(--surface2); color: var(--text); }
+
+    /* Tab content */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Sort row */
+    .sort-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .sort-row > span { color: var(--text-dim); font-size: 0.82rem; margin-right: 2px; }
+
+    .sort-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .sort-btn.active {
+      border-color: var(--red);
+      color: var(--text);
+      background: var(--surface2);
+    }
+    .sort-btn:not(.active):hover { color: var(--text); border-color: #555; }
+
+    /* ── Movies table ── */
+    .movies-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .movies-table th {
+      background: var(--surface2);
+      padding: 11px 16px;
+      text-align: left;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    .movies-table td {
+      padding: 11px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 0.9rem;
+      vertical-align: middle;
+    }
+
+    .movies-table tr:hover td { background: rgba(255,255,255,0.025); }
+
+    .movie-title-cell { font-weight: 500; }
+
+    .date-cell { color: var(--text-dim); font-size: 0.84rem; white-space: nowrap; }
+
+    .views-badge {
+      display: inline-block;
+      background: rgba(229, 9, 20, 0.14);
+      color: #ff6b6b;
+      border-radius: 10px;
+      padding: 2px 9px;
+      font-size: 0.77rem;
+      font-weight: 700;
+    }
+
+    .rating-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 700;
+      font-size: 0.86rem;
+      color: var(--gold);
+      white-space: nowrap;
+    }
+    .rating-badge.dim { color: var(--text-dim); font-weight: 400; font-size: 0.8rem; }
+    .rating-badge.pending { color: var(--text-dim); font-size: 0.78rem; font-weight: 400; font-style: italic; }
+
+    /* ── Series list ── */
+    .series-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .series-item[open] { border-color: #444; }
+
+    .series-summary {
+      display: flex;
+      align-items: center;
+      padding: 13px 16px;
+      cursor: pointer;
+      list-style: none;
+      gap: 12px;
+      user-select: none;
+    }
+    .series-summary::-webkit-details-marker { display: none; }
+    .series-summary:hover { background: rgba(255,255,255,0.02); }
+
+    .series-name { font-weight: 600; font-size: 0.95rem; flex: 1; min-width: 0; }
+
+    .series-meta {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+
+    .meta-chip {
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .expand-icon {
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .series-item[open] .expand-icon { transform: rotate(180deg); }
+
+    .series-body { padding: 4px 16px 16px; }
+
+    /* Season */
+    .season-item {
+      border-left: 2px solid var(--red);
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 6px;
+    }
+
+    .season-summary {
+      padding: 8px 12px;
+      cursor: pointer;
+      list-style: none;
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+    }
+    .season-summary::-webkit-details-marker { display: none; }
+    .season-summary:hover { color: var(--text); }
+
+    .season-ep-count {
+      font-size: 0.77rem;
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+
+    .eps-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      margin-top: 4px;
+    }
+    .eps-table td {
+      padding: 5px 12px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      color: var(--text-dim);
+    }
+    .eps-table td:first-child { color: var(--text); font-weight: 500; }
+    .eps-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .ep-rewatch {
+      color: var(--red);
+      font-size: 0.74rem;
+      font-weight: 700;
+      margin-left: 4px;
+    }
+
+    /* Ratings progress */
+    #ratings-progress {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      min-width: 230px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+      z-index: 999;
+    }
+    #ratings-progress p {
+      font-size: 0.83rem;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+    .prog-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    #prog-fill {
+      height: 100%;
+      background: var(--red);
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    /* No results */
+    .empty {
+      text-align: center;
+      padding: 48px;
+      color: var(--text-dim);
+      font-size: 0.95rem;
+    }
+
+    /* Utilities */
+    .hidden { display: none !important; }
+
+    @media (max-width: 640px) {
+      #results-nav { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+      .nav-stats { gap: 14px; }
+      .results-content { padding: 14px; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .series-meta { flex-wrap: wrap; gap: 8px; }
+      .movies-table td:nth-child(3) { display: none; }
+      .movies-table th:nth-child(3) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     IMPORT SCREEN
+════════════════════════════════════════ -->
+<div id="import-screen" class="screen active">
+  <div class="import-header">
+    <span class="n-logo">N</span>
+    <h1>Netflix History Viewer</h1>
+    <p>Import your Netflix viewing history CSV to explore and search your watch stats</p>
+  </div>
+
+  <!-- Drop zone card -->
+  <div class="card">
+    <div class="drop-zone" id="drop-zone">
+      <span class="drop-icon">📂</span>
+      <h3>Drop your CSV file here</h3>
+      <p>NetflixViewingHistory.csv</p>
+      <button class="btn btn-primary" id="browse-btn">Browse Files</button>
+      <input type="file" id="file-input" accept=".csv" hidden>
+    </div>
+    <div class="error-banner" id="file-error"></div>
+  </div>
+
+  <!-- IMDB ratings card -->
+  <div class="card">
+    <h3>⭐ IMDB Ratings <span style="font-weight:400;color:var(--text-dim);font-size:0.85rem">(optional)</span></h3>
+    <p>
+      Enter a free <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener">OMDb API key</a>
+      to load IMDB ratings alongside your titles. The key is stored locally in your browser — nothing is sent to any server.
+    </p>
+    <div class="key-row">
+      <input type="text" class="text-input" id="api-key-input" placeholder="e.g. a1b2c3d4" autocomplete="off">
+      <button class="btn btn-secondary" id="save-key-btn">Save Key</button>
+    </div>
+    <div id="key-status"></div>
+  </div>
+
+  <!-- How-to card -->
+  <div class="card how-to">
+    <h3>📥 How to export your Netflix viewing history</h3>
+    <ol>
+      <li>Go to <strong>netflix.com</strong> and sign in to your account</li>
+      <li>Click your profile icon in the top-right → <strong>Account</strong></li>
+      <li>Under "Profile &amp; Parental Controls", click your profile name</li>
+      <li>Click <strong>Viewing activity</strong></li>
+      <li>Scroll to the bottom and click <strong>Download all</strong></li>
+      <li>Netflix will generate <code>NetflixViewingHistory.csv</code> — import it above</li>
+    </ol>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     RESULTS SCREEN
+════════════════════════════════════════ -->
+<div id="results-screen" class="screen">
+
+  <nav id="results-nav">
+    <div class="nav-logo">N</div>
+    <div class="nav-stats">
+      <div class="nav-stat"><strong id="nav-movies">0</strong> Movies</div>
+      <div class="nav-stat"><strong id="nav-series">0</strong> Series</div>
+      <div class="nav-stat"><strong id="nav-episodes">0</strong> Episodes</div>
+      <div class="nav-stat"><strong id="nav-views">0</strong> Total Views</div>
+    </div>
+    <div class="nav-actions">
+      <button class="btn btn-outline" id="load-ratings-btn">⭐ Load Ratings</button>
+      <button class="btn btn-ghost" id="reset-btn">← New File</button>
+    </div>
+  </nav>
+
+  <div class="results-content">
+
+    <div class="toolbar">
+      <input type="search" id="search-input" placeholder="🔍  Search titles…">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="movies">🎬 Movies&nbsp;(<span id="movies-count-tab">0</span>)</button>
+        <button class="tab-btn" data-tab="series">📺 Series&nbsp;(<span id="series-count-tab">0</span>)</button>
+      </div>
+    </div>
+
+    <!-- Movies tab -->
+    <div id="movies-tab" class="tab-content active">
+      <div class="sort-row">
+        <span>Sort:</span>
+        <button class="sort-btn active" data-sort="title">Title</button>
+        <button class="sort-btn" data-sort="date">Last Watched</button>
+        <button class="sort-btn" data-sort="views">Times Watched</button>
+        <button class="sort-btn" data-sort="rating">IMDB Rating</button>
+      </div>
+      <div id="movies-container"></div>
+    </div>
+
+    <!-- Series tab -->
+    <div id="series-tab" class="tab-content">
+      <div class="sort-row">
+        <span>Sort:</span>
+        <button class="sort-btn active" data-sort="name">Name</button>
+        <button class="sort-btn" data-sort="date">Last Watched</button>
+        <button class="sort-btn" data-sort="episodes">Episode Count</button>
+        <button class="sort-btn" data-sort="rating">IMDB Rating</button>
+      </div>
+      <div id="series-container"></div>
+    </div>
+
+  </div><!-- /results-content -->
+
+  <!-- Ratings fetch progress -->
+  <div id="ratings-progress" class="hidden">
+    <p id="prog-text">Fetching ratings… 0 / 0</p>
+    <div class="prog-bar"><div id="prog-fill"></div></div>
+  </div>
+
+</div><!-- /results-screen -->
+
+<script>
+'use strict';
+
+// ──────────────────────────────────────────────
+// STATE
+// ──────────────────────────────────────────────
+const state = {
+  // movies: title -> { dates: string[], views: number, rating: string|null }
+  movies: {},
+  // series: name  -> { seasons: { seasonName: { epTitle: string[] } }, allDates: string[], totalEps: number, rating: string|null }
+  series: {},
+  apiKey: localStorage.getItem('omdb_key') || '',
+  ratingsCache: JSON.parse(localStorage.getItem('omdb_cache') || '{}'),
+  movieSort:  { by: 'title', dir: 1 },
+  seriesSort: { by: 'name',  dir: 1 },
+  search: '',
+};
+
+// ──────────────────────────────────────────────
+// BOOTSTRAP
+// ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initImport();
+  initResults();
+
+  if (state.apiKey) {
+    document.getElementById('api-key-input').value = state.apiKey;
+    setKeySaved(true);
+  }
+});
+
+// ──────────────────────────────────────────────
+// IMPORT SCREEN
+// ──────────────────────────────────────────────
+function initImport() {
+  const dropZone  = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+
+  document.getElementById('browse-btn').addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  document.getElementById('save-key-btn').addEventListener('click', () => {
+    const key = document.getElementById('api-key-input').value.trim();
+    state.apiKey = key;
+    localStorage.setItem('omdb_key', key);
+    setKeySaved(!!key);
+  });
+}
+
+function setKeySaved(yes) {
+  document.getElementById('key-status').innerHTML = yes
+    ? '<span class="key-saved">✓ Key saved</span>'
+    : '';
+}
+
+function handleFile(file) {
+  const errEl = document.getElementById('file-error');
+  errEl.style.display = 'none';
+
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    showErr('Please select a .csv file (NetflixViewingHistory.csv).');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const rows = parseCSV(e.target.result);
+      if (!rows.length) { showErr('The file appears to be empty or unrecognized.'); return; }
+      organizeData(rows);
+      showResults();
+    } catch (err) {
+      showErr('Could not parse file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showErr(msg) {
+  const el = document.getElementById('file-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ──────────────────────────────────────────────
+// CSV PARSING
+// ──────────────────────────────────────────────
+function parseCSV(raw) {
+  // Strip UTF-8 BOM
+  raw = raw.replace(/^﻿/, '');
+
+  // Collect logical lines (respecting quoted newlines)
+  const lines = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (ch === '"') {
+      if (inQ && raw[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if ((ch === '\n' || ch === '\r') && !inQ) {
+      if (cur.trim()) lines.push(cur);
+      cur = '';
+      if (ch === '\r' && raw[i + 1] === '\n') i++;
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur.trim()) lines.push(cur);
+  if (lines.length < 2) return [];
+
+  const headers = splitLine(lines[0]).map(h => h.trim().toLowerCase());
+  const ti = headers.indexOf('title');
+  const di = headers.indexOf('date');
+  if (ti === -1) throw new Error('No "Title" column found.');
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = splitLine(lines[i]);
+    const title = (cols[ti] || '').trim();
+    if (title) rows.push({ title, date: di !== -1 ? (cols[di] || '').trim() : '' });
+  }
+  return rows;
+}
+
+function splitLine(line) {
+  const cols = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (ch === ',' && !inQ) {
+      cols.push(cur); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  cols.push(cur);
+  return cols;
+}
+
+// ──────────────────────────────────────────────
+// DATA ORGANISATION
+// ──────────────────────────────────────────────
+const KEYWORDS = ['season', 'chapter', 'volume', 'part', 'limited series'];
+
+function organizeData(rows) {
+  // Pass 1 — find series roots (title root appears more than once, or contains keywords)
+  const rootSets = {};
+  for (const { title } of rows) {
+    const root = title.split(':')[0].trim();
+    (rootSets[root] = rootSets[root] || new Set()).add(title);
+  }
+  const seriesRoots = new Set();
+  for (const [root, titles] of Object.entries(rootSets)) {
+    if (titles.size > 1 || KEYWORDS.some(k => [...titles][0].toLowerCase().includes(k))) {
+      seriesRoots.add(root);
+    }
+  }
+
+  // Pass 2 — categorise
+  state.movies = {};
+  state.series = {};
+
+  for (const { title, date } of rows) {
+    const root = title.split(':')[0].trim();
+    const isSeries = seriesRoots.has(root) || KEYWORDS.some(k => title.toLowerCase().includes(k));
+
+    if (isSeries) {
+      const show = root;
+      const season = extractSeason(show, title);
+      const s = state.series[show] = state.series[show] || { seasons: {}, allDates: [], totalEps: 0, rating: null };
+      const seas = s.seasons[season] = s.seasons[season] || {};
+      (seas[title] = seas[title] || []).push(date);
+      s.allDates.push(date);
+    } else {
+      const m = state.movies[title] = state.movies[title] || { dates: [], views: 0, rating: null };
+      m.dates.push(date);
+      m.views++;
+    }
+  }
+
+  for (const show of Object.values(state.series)) {
+    show.totalEps = Object.values(show.seasons).reduce((s, eps) => s + Object.keys(eps).length, 0);
+    // Pre-fill rating from cache
+    show.rating = null;
+  }
+  for (const movie of Object.values(state.movies)) {
+    movie.rating = null;
+  }
+
+  // Apply cached ratings
+  for (const [title, movie] of Object.entries(state.movies)) {
+    const cached = state.ratingsCache[title.toLowerCase()];
+    if (cached !== undefined) movie.rating = cached;
+  }
+  for (const [name, show] of Object.entries(state.series)) {
+    const cached = state.ratingsCache[name.toLowerCase()];
+    if (cached !== undefined) show.rating = cached;
+  }
+}
+
+function extractSeason(show, fullTitle) {
+  let rem = fullTitle.startsWith(show)
+    ? fullTitle.slice(show.length).replace(/^[\s:–\-]+/, '')
+    : fullTitle;
+  const m = rem.match(/^((Season|Part|Volume|Series|Chapter)\s+\d+)/i);
+  if (m) return m[1][0].toUpperCase() + m[1].slice(1);
+  if (/limited series/i.test(rem)) return 'Limited Series';
+  return 'Other';
+}
+
+// ──────────────────────────────────────────────
+// DATE HELPERS
+// ──────────────────────────────────────────────
+function parseDate(str) {
+  if (!str) return new Date(0);
+  const [m, d, y] = str.split('/').map(Number);
+  if (!m) return new Date(0);
+  return new Date(y < 50 ? 2000 + y : 1900 + y, m - 1, d);
+}
+
+function latestDate(dates) {
+  if (!dates || !dates.length) return new Date(0);
+  return dates.reduce((best, d) => { const dt = parseDate(d); return dt > best ? dt : best; }, new Date(0));
+}
+
+function fmtDate(dateStr) {
+  const dt = parseDate(dateStr);
+  return dt.getTime() === 0 ? '—' : dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function bestDate(dates) {
+  if (!dates || !dates.length) return '—';
+  return fmtDate(dates.reduce((best, d) => parseDate(d) > parseDate(best) ? d : best, dates[0]));
+}
+
+// ──────────────────────────────────────────────
+// RESULTS SCREEN
+// ──────────────────────────────────────────────
+function showResults() {
+  document.getElementById('import-screen').classList.remove('active');
+  document.getElementById('results-screen').classList.add('active');
+
+  const mc = Object.keys(state.movies).length;
+  const sc = Object.keys(state.series).length;
+  const te = Object.values(state.series).reduce((s, sh) => s + sh.totalEps, 0);
+  const tv = Object.values(state.movies).reduce((s, m) => s + m.views, 0)
+           + Object.values(state.series).reduce((s, sh) => s + sh.allDates.length, 0);
+
+  document.getElementById('nav-movies').textContent   = mc;
+  document.getElementById('nav-series').textContent   = sc;
+  document.getElementById('nav-episodes').textContent = te;
+  document.getElementById('nav-views').textContent    = tv;
+  document.getElementById('movies-count-tab').textContent = mc;
+  document.getElementById('series-count-tab').textContent = sc;
+
+  renderMovies();
+  renderSeries();
+}
+
+function resetApp() {
+  state.movies = {};
+  state.series = {};
+  state.search = '';
+  document.getElementById('search-input').value = '';
+  document.getElementById('file-input').value = '';
+  document.getElementById('file-error').style.display = 'none';
+  document.getElementById('results-screen').classList.remove('active');
+  document.getElementById('import-screen').classList.add('active');
+  document.getElementById('load-ratings-btn').textContent = '⭐ Load Ratings';
+  document.getElementById('load-ratings-btn').disabled = false;
+}
+
+// ──────────────────────────────────────────────
+// RESULTS INIT
+// ──────────────────────────────────────────────
+function initResults() {
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab + '-tab').classList.add('active');
+    });
+  });
+
+  // Search
+  document.getElementById('search-input').addEventListener('input', e => {
+    state.search = e.target.value.toLowerCase().trim();
+    filterMovies();
+    filterSeries();
+  });
+
+  // Movie sort buttons
+  document.querySelectorAll('#movies-tab .sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const by = btn.dataset.sort;
+      state.movieSort.dir = state.movieSort.by === by ? -state.movieSort.dir : 1;
+      state.movieSort.by = by;
+      document.querySelectorAll('#movies-tab .sort-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderMovies();
+    });
+  });
+
+  // Series sort buttons
+  document.querySelectorAll('#series-tab .sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const by = btn.dataset.sort;
+      state.seriesSort.dir = state.seriesSort.by === by ? -state.seriesSort.dir : 1;
+      state.seriesSort.by = by;
+      document.querySelectorAll('#series-tab .sort-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderSeries();
+    });
+  });
+
+  document.getElementById('load-ratings-btn').addEventListener('click', loadAllRatings);
+  document.getElementById('reset-btn').addEventListener('click', resetApp);
+}
+
+// ──────────────────────────────────────────────
+// RENDERING — MOVIES
+// ──────────────────────────────────────────────
+function sortedMovies() {
+  const { by, dir } = state.movieSort;
+  return Object.entries(state.movies).sort(([tA, mA], [tB, mB]) => {
+    if (by === 'title')  return dir * tA.toLowerCase().localeCompare(tB.toLowerCase());
+    if (by === 'date')   return dir * (latestDate(mB.dates) - latestDate(mA.dates));
+    if (by === 'views')  return dir * (mB.views - mA.views);
+    if (by === 'rating') return dir * ((parseFloat(mB.rating) || 0) - (parseFloat(mA.rating) || 0));
+    return 0;
+  });
+}
+
+function renderMovies() {
+  let html = `<table class="movies-table">
+    <thead><tr>
+      <th>Title</th>
+      <th>Last Watched</th>
+      <th>Times Watched</th>
+      <th>IMDB</th>
+    </tr></thead><tbody>`;
+
+  for (const [title, m] of sortedMovies()) {
+    const views = m.views > 1
+      ? `<span class="views-badge">${m.views}×</span>`
+      : `<span style="color:var(--text-dim);font-size:0.82rem">1×</span>`;
+
+    html += `<tr class="m-row" data-title="${esc(title.toLowerCase())}">
+      <td class="movie-title-cell">${esc(title)}</td>
+      <td class="date-cell">${bestDate(m.dates)}</td>
+      <td>${views}</td>
+      <td class="r-cell" data-key="${esc(title)}">${ratingHTML(m.rating)}</td>
+    </tr>`;
+  }
+
+  html += '</tbody></table>';
+  document.getElementById('movies-container').innerHTML = html;
+  filterMovies();
+}
+
+function filterMovies() {
+  const q = state.search;
+  document.querySelectorAll('.m-row').forEach(row => {
+    row.style.display = (!q || row.dataset.title.includes(q)) ? '' : 'none';
+  });
+}
+
+// ──────────────────────────────────────────────
+// RENDERING — SERIES
+// ──────────────────────────────────────────────
+function sortedSeries() {
+  const { by, dir } = state.seriesSort;
+  return Object.entries(state.series).sort(([nA, sA], [nB, sB]) => {
+    if (by === 'name')     return dir * nA.toLowerCase().localeCompare(nB.toLowerCase());
+    if (by === 'date')     return dir * (latestDate(sB.allDates) - latestDate(sA.allDates));
+    if (by === 'episodes') return dir * (sB.totalEps - sA.totalEps);
+    if (by === 'rating')   return dir * ((parseFloat(sB.rating) || 0) - (parseFloat(sA.rating) || 0));
+    return 0;
+  });
+}
+
+function renderSeries() {
+  let html = '';
+
+  for (const [name, show] of sortedSeries()) {
+    const lastWatched = latestDate(show.allDates);
+    const dateStr = lastWatched.getTime() > 0
+      ? lastWatched.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      : '—';
+    const seasonCount = Object.keys(show.seasons).length;
+
+    const sortedSeasons = Object.entries(show.seasons).sort(([a], [b]) => {
+      const na = parseInt(a.match(/\d+/)?.[0] ?? '999');
+      const nb = parseInt(b.match(/\d+/)?.[0] ?? '999');
+      return na - nb;
+    });
+
+    let seasonsHTML = '';
+    for (const [seasonName, episodes] of sortedSeasons) {
+      const epCount = Object.keys(episodes).length;
+      let epsHTML = '<table class="eps-table">';
+
+      for (const [epTitle, dates] of Object.entries(episodes)) {
+        let label = epTitle;
+        if (label.startsWith(name)) label = label.slice(name.length).replace(/^[\s:–\-]+/, '');
+        const snLower = seasonName.toLowerCase();
+        if (label.toLowerCase().startsWith(snLower)) label = label.slice(seasonName.length).replace(/^[\s:–\-]+/, '');
+        if (label.length < 2) label = epTitle;
+
+        const latest = dates.reduce((b, d) => parseDate(d) > parseDate(b) ? d : b, dates[0]);
+        const rewatch = dates.length > 1 ? `<span class="ep-rewatch">${dates.length}×</span>` : '';
+
+        epsHTML += `<tr>
+          <td>${esc(label)}${rewatch}</td>
+          <td style="color:var(--text-dim);font-size:0.8rem;text-align:right;white-space:nowrap">${fmtDate(latest)}</td>
+        </tr>`;
+      }
+      epsHTML += '</table>';
+
+      seasonsHTML += `<details class="season-item">
+        <summary class="season-summary">
+          ${esc(seasonName)}<span class="season-ep-count">${epCount} ep</span>
+        </summary>
+        <div style="padding:0 12px 8px">${epsHTML}</div>
+      </details>`;
+    }
+
+    html += `<details class="series-item s-row" data-name="${esc(name.toLowerCase())}">
+      <summary class="series-summary">
+        <div class="series-name">${esc(name)}</div>
+        <div class="series-meta">
+          <span class="sr-cell" data-key="${esc(name)}">${ratingHTML(show.rating)}</span>
+          <span class="meta-chip">${seasonCount} season${seasonCount !== 1 ? 's' : ''}</span>
+          <span class="meta-chip">${show.totalEps} ep</span>
+          <span class="meta-chip">${dateStr}</span>
+        </div>
+        <span class="expand-icon">▾</span>
+      </summary>
+      <div class="series-body">${seasonsHTML}</div>
+    </details>`;
+  }
+
+  document.getElementById('series-container').innerHTML =
+    html || '<div class="empty">No series found.</div>';
+  filterSeries();
+}
+
+function filterSeries() {
+  const q = state.search;
+  document.querySelectorAll('.s-row').forEach(item => {
+    item.style.display = (!q || item.dataset.name.includes(q)) ? '' : 'none';
+  });
+}
+
+// ──────────────────────────────────────────────
+// RATING BADGE HTML
+// ──────────────────────────────────────────────
+function ratingHTML(r) {
+  if (r === null)              return `<span class="rating-badge dim">—</span>`;
+  if (r === 'pending')         return `<span class="rating-badge pending">loading…</span>`;
+  if (!r || r === 'N/A')       return `<span class="rating-badge dim">N/A</span>`;
+  return `<span class="rating-badge">⭐ ${r}</span>`;
+}
+
+// ──────────────────────────────────────────────
+// IMDB RATINGS (OMDb API)
+// ──────────────────────────────────────────────
+async function loadAllRatings() {
+  if (!state.apiKey) {
+    alert('Please enter and save an OMDb API key first.\n\nGet a free key (1,000 requests/day) at:\nhttps://www.omdbapi.com/apikey.aspx');
+    return;
+  }
+
+  const btn = document.getElementById('load-ratings-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Fetching…';
+
+  const prog     = document.getElementById('ratings-progress');
+  const progText = document.getElementById('prog-text');
+  const progFill = document.getElementById('prog-fill');
+  prog.classList.remove('hidden');
+
+  const queue = [
+    ...Object.keys(state.movies).map(t => ({ type: 'movie',  key: t })),
+    ...Object.keys(state.series).map(t => ({ type: 'series', key: t })),
+  ];
+
+  const total = queue.length;
+  let done = 0;
+
+  for (const { type, key } of queue) {
+    // Skip if already fetched this session or from cache
+    const existing = type === 'movie' ? state.movies[key]?.rating : state.series[key]?.rating;
+    if (existing !== null && existing !== undefined) { done++; continue; }
+
+    // Mark as pending in the DOM
+    setRatingInDOM(key, type, 'pending');
+
+    const rating = await fetchRating(key);
+
+    if (type === 'movie'  && state.movies[key])  state.movies[key].rating  = rating;
+    if (type === 'series' && state.series[key])  state.series[key].rating  = rating;
+
+    setRatingInDOM(key, type, rating);
+
+    done++;
+    progText.textContent = `Fetching ratings… ${done} / ${total}`;
+    progFill.style.width = `${(done / total) * 100}%`;
+
+    await delay(160);
+  }
+
+  // Persist cache
+  localStorage.setItem('omdb_cache', JSON.stringify(state.ratingsCache));
+
+  prog.classList.add('hidden');
+  btn.textContent = '✓ Ratings Loaded';
+}
+
+function setRatingInDOM(key, type, rating) {
+  const html = ratingHTML(rating);
+  if (type === 'movie') {
+    document.querySelectorAll('.r-cell').forEach(el => {
+      if (el.getAttribute('data-key') === key) el.innerHTML = html;
+    });
+  } else {
+    document.querySelectorAll('.sr-cell').forEach(el => {
+      if (el.getAttribute('data-key') === key) el.innerHTML = html;
+    });
+  }
+}
+
+async function fetchRating(title) {
+  const cacheKey = title.toLowerCase();
+  if (state.ratingsCache[cacheKey] !== undefined) return state.ratingsCache[cacheKey];
+
+  try {
+    const url = `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${encodeURIComponent(state.apiKey)}`;
+    const res  = await fetch(url);
+    if (!res.ok) return 'N/A';
+    const data = await res.json();
+    const rating = (data.Response === 'True' && data.imdbRating && data.imdbRating !== 'N/A')
+      ? data.imdbRating : 'N/A';
+    state.ratingsCache[cacheKey] = rating;
+    return rating;
+  } catch {
+    return 'N/A';
+  }
+}
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+// ──────────────────────────────────────────────
+// HTML ESCAPE HELPERS
+// ──────────────────────────────────────────────
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+</script>
+</body>
+</html>
